@@ -42,3 +42,10 @@ export interface GameState {
   dead: boolean
   playerName: string
 }
+
+export interface MovementInput {
+  x: number
+  y: number
+  intensity: number
+  active: boolean
+}

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { MovementInput } from './types'
 import { useGame } from './useGame'
 
 const isMobile = () =>
@@ -88,7 +89,7 @@ function StartScreen({ onStart }: { onStart: (name: string) => void }) {
           textAlign: 'center',
         }}>
           <b style={{ color: '#fff' }}>Kontroller:</b><br />
-          Dra fingeren — beveg cellen<br />
+          Bruk joysticken — beveg cellen<br />
           <b style={{ color: '#4d96ff' }}>SPLIT</b> — del deg i to<br />
           <b style={{ color: '#2ecc71' }}>EJECT</b> — sleng ut masse
         </div>
@@ -155,10 +156,12 @@ function DeathScreen({ score, onRestart }: { score: number; onRestart: () => voi
 
 // ─── HUD ──────────────────────────────────────────────────────────────────
 
-function HUD({ score, cellCount }: { score: number; cellCount: number }) {
+function HUD({ score, cellCount, mobile }: { score: number; cellCount: number; mobile: boolean }) {
   return (
     <div style={{
-      position: 'fixed', bottom: 16, left: 16,
+      position: 'fixed',
+      bottom: mobile ? 150 : 16,
+      left: 16,
       fontFamily: 'Arial, sans-serif',
       color: '#fff',
       userSelect: 'none',
@@ -243,15 +246,120 @@ function MobileControls({
   )
 }
 
+function MobileJoystick({
+  value,
+  onChange,
+}: {
+  value: MovementInput
+  onChange: (value: MovementInput) => void
+}) {
+  const baseRef = useRef<HTMLDivElement>(null)
+  const activePointerIdRef = useRef<number | null>(null)
+  const maxThrow = 34
+  const thumbOffsetX = value.x * value.intensity * maxThrow
+  const thumbOffsetY = value.y * value.intensity * maxThrow
+
+  const updateFromClientPoint = (clientX: number, clientY: number) => {
+    const base = baseRef.current
+    if (!base) return
+
+    const rect = base.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const dx = clientX - cx
+    const dy = clientY - cy
+    const distance = Math.hypot(dx, dy)
+    const intensity = Math.min(distance / maxThrow, 1)
+    const clampFactor = distance > maxThrow ? maxThrow / distance : 1
+    const clampedX = dx * clampFactor
+    const clampedY = dy * clampFactor
+
+    onChange({
+      x: intensity > 0 ? clampedX / maxThrow : 0,
+      y: intensity > 0 ? clampedY / maxThrow : 0,
+      intensity,
+      active: intensity > 0,
+    })
+  }
+
+  const reset = () => {
+    onChange({ x: 0, y: 0, intensity: 0, active: false })
+  }
+
+  return (
+    <div
+      ref={baseRef}
+      onPointerDown={e => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return
+        activePointerIdRef.current = e.pointerId
+        e.currentTarget.setPointerCapture(e.pointerId)
+        e.preventDefault()
+        updateFromClientPoint(e.clientX, e.clientY)
+      }}
+      onPointerMove={e => {
+        if (activePointerIdRef.current !== e.pointerId) return
+        e.preventDefault()
+        updateFromClientPoint(e.clientX, e.clientY)
+      }}
+      onPointerUp={e => {
+        if (activePointerIdRef.current !== e.pointerId) return
+        activePointerIdRef.current = null
+        e.preventDefault()
+        reset()
+      }}
+      onPointerCancel={e => {
+        if (activePointerIdRef.current !== e.pointerId) return
+        activePointerIdRef.current = null
+        e.preventDefault()
+        reset()
+      }}
+      style={{
+        position: 'fixed',
+        left: 24,
+        bottom: 24,
+        width: 108,
+        height: 108,
+        borderRadius: '50%',
+        background: 'rgba(0,0,0,0.22)',
+        border: '2px solid rgba(255,255,255,0.14)',
+        boxShadow: 'inset 0 0 18px rgba(255,255,255,0.08), 0 4px 16px rgba(0,0,0,0.35)',
+        zIndex: 50,
+        touchAction: 'none',
+      }}
+    >
+      <div style={{
+        position: 'absolute',
+        inset: 18,
+        borderRadius: '50%',
+        border: '1px solid rgba(255,255,255,0.12)',
+      }} />
+      <div style={{
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        width: 48,
+        height: 48,
+        marginLeft: -24,
+        marginTop: -24,
+        borderRadius: '50%',
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.9), rgba(200,200,200,0.55))',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.35)',
+        transform: `translate(${thumbOffsetX}px, ${thumbOffsetY}px)`,
+      }} />
+    </div>
+  )
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [started, setStarted] = useState(false)
   const [playerName, setPlayerName] = useState('')
+  const [joystick, setJoystick] = useState<MovementInput>({ x: 0, y: 0, intensity: 0, active: false })
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mobile = isMobile()
 
-  const { state, dead, restart, doSplit, doEject } = useGame(canvasRef, playerName)
+  const { state, dead, restart, doSplit, doEject } = useGame(canvasRef, playerName, joystick, mobile)
 
   const handleStart = (name: string) => {
     setPlayerName(name || 'Spiller')
@@ -265,7 +373,8 @@ export default function App() {
       {started && dead && <DeathScreen score={state.score} onRestart={() => restart(playerName)} />}
       {started && !dead && (
         <>
-          <HUD score={state.score} cellCount={state.playerCells.length} />
+          <HUD score={state.score} cellCount={state.playerCells.length} mobile={mobile} />
+          {mobile && <MobileJoystick value={joystick} onChange={setJoystick} />}
           {mobile && <MobileControls onSplit={doSplit} onEject={doEject} />}
         </>
       )}

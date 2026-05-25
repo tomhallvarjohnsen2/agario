@@ -219,6 +219,21 @@ function darken(hex: string, amt: number): string {
   return `rgb(${Math.max(0, r - amt)},${Math.max(0, g - amt)},${Math.max(0, b - amt)})`
 }
 
+function fitText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+): string {
+  if (ctx.measureText(text).width <= maxWidth) return text
+
+  let trimmed = text
+  while (trimmed.length > 1 && ctx.measureText(`${trimmed}...`).width > maxWidth) {
+    trimmed = trimmed.slice(0, -1)
+  }
+
+  return `${trimmed}...`
+}
+
 // ─── Leaderboard ──────────────────────────────────────────────────────────
 
 export function renderLeaderboard(
@@ -238,9 +253,9 @@ export function renderLeaderboard(
   all.sort((a, b) => b.radius - a.radius)
   const top = all.slice(0, 10)
 
-  const pad = 14
-  const rowH = 22
-  const w = 180
+  const pad = 8
+  const rowH = 20
+  const w = 90
   const h = pad * 2 + rowH * (top.length + 1)
   const x = canvas.width - w - 16
   const y = 16
@@ -252,15 +267,16 @@ export function renderLeaderboard(
   ctx.fill()
 
   ctx.fillStyle = '#ffffff'
-  ctx.font = 'bold 14px Arial'
+  ctx.font = 'bold 11px Arial'
   ctx.textAlign = 'left'
   ctx.fillText('Leaderboard', x + pad, y + pad + 12)
 
   top.forEach((entry, i) => {
     const ry = y + pad + rowH * (i + 1) + 10
-    ctx.font = entry.isPlayer ? 'bold 12px Arial' : '12px Arial'
+    ctx.font = entry.isPlayer ? 'bold 10px Arial' : '10px Arial'
     ctx.fillStyle = entry.isPlayer ? '#f1c40f' : 'rgba(255,255,255,0.85)'
-    ctx.fillText(`${i + 1}. ${entry.name}`, x + pad, ry)
+    const label = fitText(ctx, `${i + 1}. ${entry.name}`, w - pad * 2)
+    ctx.fillText(label, x + pad, ry)
   })
 
   ctx.restore()

@@ -1,40 +1,94 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ejectMass, initialState, splitPlayerCells, tick } from './gameLogic'
 import { Camera, computeCamera, render, screenToWorld } from './renderer'
-import { GameState } from './types'
+import { GameState, MovementInput } from './types'
 
-export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>, playerName: string) {
+const MOBILE_MOVE_DISTANCE = 180
+const MOBILE_ACTION_DISTANCE = 220
+
+function screenCenter(canvas: HTMLCanvasElement) {
+  return { x: canvas.width / 2, y: canvas.height / 2 }
+}
+
+export function useGame(
+  canvasRef: React.RefObject<HTMLCanvasElement | null>,
+  playerName: string,
+  movementInput: MovementInput,
+  isMobile: boolean,
+) {
   const stateRef = useRef<GameState>(initialState(playerName))
   const mouseRef = useRef({ x: 0, y: 0 })
   const camRef = useRef<Camera>({ x: 2000, y: 2000, zoom: 1 })
+  const movementInputRef = useRef(movementInput)
+  const lastAimRef = useRef({ x: 1, y: 0 })
   const rafRef = useRef<number>(0)
   const [, forceRender] = useState(0)
   const [dead, setDead] = useState(false)
+
+  useEffect(() => {
+    movementInputRef.current = movementInput
+    if (movementInput.intensity > 0.01) {
+      lastAimRef.current = { x: movementInput.x, y: movementInput.y }
+    }
+  }, [movementInput])
 
   const restart = useCallback((name: string) => {
     stateRef.current = initialState(name)
     setDead(false)
   }, [])
 
+  const getTargetWorld = useCallback((mode: 'move' | 'action') => {
+    const canvas = canvasRef.current
+    if (!canvas) return null
+
+    let targetScreen = mouseRef.current
+    if (isMobile) {
+      const center = screenCenter(canvas)
+      const input = movementInputRef.current
+
+      if (mode === 'move') {
+        if (input.intensity <= 0.01) {
+          targetScreen = center
+        } else {
+          const distance = input.intensity * MOBILE_MOVE_DISTANCE
+          targetScreen = {
+            x: center.x + input.x * distance,
+            y: center.y + input.y * distance,
+          }
+        }
+      } else {
+        const aim = input.intensity > 0.01
+          ? { x: input.x, y: input.y }
+          : lastAimRef.current
+        targetScreen = {
+          x: center.x + aim.x * MOBILE_ACTION_DISTANCE,
+          y: center.y + aim.y * MOBILE_ACTION_DISTANCE,
+        }
+      }
+    }
+
+    return screenToWorld(targetScreen.x, targetScreen.y, camRef.current, canvas)
+  }, [canvasRef, isMobile])
+
   // Exposed so mobile buttons can trigger these
   const doSplit = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
     const state = stateRef.current
     if (state.dead) return
-    const { wx, wy } = screenToWorld(mouseRef.current.x, mouseRef.current.y, camRef.current, canvas)
+    const target = getTargetWorld('action')
+    if (!target) return
+    const { wx, wy } = target
     stateRef.current = { ...state, playerCells: splitPlayerCells(state.playerCells, wx, wy) }
-  }, [canvasRef])
+  }, [getTargetWorld])
 
   const doEject = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
     const state = stateRef.current
     if (state.dead) return
-    const { wx, wy } = screenToWorld(mouseRef.current.x, mouseRef.current.y, camRef.current, canvas)
+    const target = getTargetWorld('action')
+    if (!target) return
+    const { wx, wy } = target
     const { cells, food } = ejectMass(state.playerCells, state.food, wx, wy)
     stateRef.current = { ...state, playerCells: cells, food }
-  }, [canvasRef])
+  }, [getTargetWorld])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -62,9 +116,6 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>, pl
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('keydown', onKeyDown)
 
-    // ── Touch ──────────────────────────────────────────────────────────────
-    // We track the FIRST touch for movement. Additional touches are ignored
-    // here — split/eject are handled by React button elements.
     const onTouchMove = (e: TouchEvent) => {
       e.preventDefault()
       if (e.touches.length > 0) {
@@ -78,8 +129,10 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>, pl
       }
     }
 
-    canvas.addEventListener('touchmove',  onTouchMove,  { passive: false })
-    canvas.addEventListener('touchstart', onTouchStart, { passive: false })
+    if (!isMobile) {
+      canvas.addEventListener('touchmove', onTouchMove, { passive: false })
+      canvas.addEventListener('touchstart', onTouchStart, { passive: false })
+    }
 
     // ── Game loop ──────────────────────────────────────────────────────────
     const ctx = canvas.getContext('2d')!
@@ -88,7 +141,9 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>, pl
     const loop = () => {
       frameCount++
       const state = stateRef.current
-      const { wx, wy } = screenToWorld(mouseRef.current.x, mouseRef.current.y, camRef.current, canvas)
+      const target = getTargetWorld('move')
+      if (!target) return
+      const { wx, wy } = target
 
       const { state: newState } = tick({ state, mouseWorldX: wx, mouseWorldY: wy })
       stateRef.current = newState
@@ -117,10 +172,12 @@ export function useGame(canvasRef: React.RefObject<HTMLCanvasElement | null>, pl
       window.removeEventListener('resize', resize)
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('keydown', onKeyDown)
-      canvas.removeEventListener('touchmove',  onTouchMove)
-      canvas.removeEventListener('touchstart', onTouchStart)
+      if (!isMobile) {
+        canvas.removeEventListener('touchmove', onTouchMove)
+        canvas.removeEventListener('touchstart', onTouchStart)
+      }
     }
-  }, [canvasRef, playerName, doSplit, doEject])
+  }, [canvasRef, playerName, doSplit, doEject, getTargetWorld, isMobile])
 
   return { state: stateRef.current, dead, restart, doSplit, doEject }
 }
