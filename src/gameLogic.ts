@@ -258,6 +258,7 @@ function separatePlayerCells(cells: Cell[]): Cell[] {
     for (let j = i + 1; j < result.length; j++) {
       const a = result[i]
       const b = result[j]
+      if ((a.mergeTimer ?? 0) <= 0 && (b.mergeTimer ?? 0) <= 0) continue
       const minDist = a.radius + b.radius
       const d = dist(a.x, a.y, b.x, b.y)
       if (d < minDist && d > 0) {

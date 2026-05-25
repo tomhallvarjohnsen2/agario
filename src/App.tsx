@@ -156,11 +156,11 @@ function DeathScreen({ score, onRestart }: { score: number; onRestart: () => voi
 
 // ─── HUD ──────────────────────────────────────────────────────────────────
 
-function HUD({ score, cellCount, mobile }: { score: number; cellCount: number; mobile: boolean }) {
+function HUD({ score, cellCount }: { score: number; cellCount: number }) {
   return (
     <div style={{
       position: 'fixed',
-      bottom: mobile ? 150 : 16,
+      top: 16,
       left: 16,
       fontFamily: 'Arial, sans-serif',
       color: '#fff',
@@ -373,7 +373,7 @@ export default function App() {
       {started && dead && <DeathScreen score={state.score} onRestart={() => restart(playerName)} />}
       {started && !dead && (
         <>
-          <HUD score={state.score} cellCount={state.playerCells.length} mobile={mobile} />
+          <HUD score={state.score} cellCount={state.playerCells.length} />
           {mobile && <MobileJoystick value={joystick} onChange={setJoystick} />}
           {mobile && <MobileControls onSplit={doSplit} onEject={doEject} />}
         </>
