@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(npm run:*)",
+      "Bash(npx cap:*)",
+      "Bash(gh auth:*)",
+      "Bash(git --version)",
+      "Bash(git -C C:/Temp/Agario status)",
+      "Bash(where gh:*)",
+      "Bash(cmd /c \"where gh\")",
+      "Read(//c/Program Files/**)"
+    ]
+  }
+}
