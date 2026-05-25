@@ -188,6 +188,11 @@ function MobileControls({
   onSplit: () => void
   onEject: () => void
 }) {
+  const handlePress = (action: () => void) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    action()
+  }
+
   const btnBase: React.CSSProperties = {
     position: 'fixed',
     bottom: 24,
@@ -214,8 +219,8 @@ function MobileControls({
     <>
       {/* Split — bottom right */}
       <button
-        onTouchStart={e => { e.preventDefault(); onSplit() }}
-        onClick={onSplit}
+        type="button"
+        onPointerDown={handlePress(onSplit)}
         style={{
           ...btnBase,
           right: 24,
@@ -229,8 +234,8 @@ function MobileControls({
 
       {/* Eject — bottom right, above split */}
       <button
-        onTouchStart={e => { e.preventDefault(); onEject() }}
-        onClick={onEject}
+        type="button"
+        onPointerDown={handlePress(onEject)}
         style={{
           ...btnBase,
           right: 24,
