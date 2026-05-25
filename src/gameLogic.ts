@@ -199,11 +199,12 @@ export function ejectMass(
     const d = Math.sqrt(dx * dx + dy * dy) || 1
     const nx = dx / d
     const ny = dy / d
+    const ejectDistance = (cell.radius + ejectRadius + 2) * 6
 
     newFood.push({
       id: uid(),
-      x: cell.x + nx * (cell.radius + ejectRadius + 2),
-      y: cell.y + ny * (cell.radius + ejectRadius + 2),
+      x: cell.x + nx * ejectDistance,
+      y: cell.y + ny * ejectDistance,
       radius: ejectRadius,
       color: cell.color,
       value: 1,
