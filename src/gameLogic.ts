@@ -188,7 +188,7 @@ export function ejectMass(
 ): { cells: Cell[]; food: Food[] } {
   const newFood: Food[] = []
   const updatedCells = cells.map(cell => {
-    const minEjectRadius = 35
+    const minEjectRadius = INITIAL_PLAYER_RADIUS
     if (cell.radius < minEjectRadius) return cell
 
     const ejectRadius = cell.radius * EJECT_MASS_FACTOR
