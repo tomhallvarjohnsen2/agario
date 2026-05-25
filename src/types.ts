@@ -26,6 +26,7 @@ export interface Food {
   value: number      // score awarded when eaten (1 = normal, 5 = special)
   vx?: number
   vy?: number
+  pickupDelay?: number
 }
 
 export interface Virus {

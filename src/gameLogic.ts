@@ -188,11 +188,9 @@ export function ejectMass(
 ): { cells: Cell[]; food: Food[] } {
   const newFood: Food[] = []
   const updatedCells = cells.map(cell => {
-    const minEjectRadius = INITIAL_PLAYER_RADIUS
-    if (cell.radius < minEjectRadius) return cell
-
     const ejectRadius = cell.radius * EJECT_MASS_FACTOR
     const newRadius = massToRadius(radiusToMass(cell.radius) - radiusToMass(ejectRadius))
+    if (newRadius < MIN_RADIUS * 1.6) return cell
 
     const dx = targetX - cell.x
     const dy = targetY - cell.y
@@ -207,8 +205,9 @@ export function ejectMass(
       radius: ejectRadius,
       color: cell.color,
       value: 1,
-      vx: nx * EJECT_SPEED,
-      vy: ny * EJECT_SPEED,
+      vx: nx * EJECT_SPEED * 6,
+      vy: ny * EJECT_SPEED * 6,
+      pickupDelay: 10,
     })
 
     return { ...cell, radius: newRadius }
@@ -221,9 +220,10 @@ function moveFood(food: Food[]): Food[] {
   return food.map(item => {
     const vx = (item.vx ?? 0) * 0.9
     const vy = (item.vy ?? 0) * 0.9
+    const pickupDelay = Math.max(0, (item.pickupDelay ?? 0) - 1)
 
     if (Math.abs(vx) < 0.05 && Math.abs(vy) < 0.05) {
-      return { ...item, vx: 0, vy: 0 }
+      return { ...item, vx: 0, vy: 0, pickupDelay }
     }
 
     return {
@@ -232,6 +232,7 @@ function moveFood(food: Food[]): Food[] {
       y: clamp(item.y + (item.vy ?? 0), item.radius, WORLD_HEIGHT - item.radius),
       vx,
       vy,
+      pickupDelay,
     }
   })
 }
@@ -455,6 +456,10 @@ export function eatFood(
 
   for (const f of food) {
     let foodEaten = false
+    if ((f.pickupDelay ?? 0) > 0) {
+      remaining.push(f)
+      continue
+    }
     for (let i = 0; i < cells.length; i++) {
       const c = cells[i]
       if (c.radius < f.radius) continue
