@@ -24,6 +24,7 @@ export function useGame(
   const rafRef = useRef<number>(0)
   const [, forceRender] = useState(0)
   const [dead, setDead] = useState(false)
+  const [restartToken, setRestartToken] = useState(0)
 
   useEffect(() => {
     movementInputRef.current = movementInput
@@ -35,6 +36,7 @@ export function useGame(
   const restart = useCallback((name: string) => {
     stateRef.current = initialState(name)
     setDead(false)
+    setRestartToken(token => token + 1)
   }, [])
 
   const getTargetWorld = useCallback((mode: 'move' | 'action') => {
@@ -177,7 +179,7 @@ export function useGame(
         canvas.removeEventListener('touchstart', onTouchStart)
       }
     }
-  }, [canvasRef, playerName, doSplit, doEject, getTargetWorld, isMobile])
+  }, [canvasRef, playerName, doSplit, doEject, getTargetWorld, isMobile, restartToken])
 
   return { state: stateRef.current, dead, restart, doSplit, doEject }
 }
