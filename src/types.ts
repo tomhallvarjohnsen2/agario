@@ -24,6 +24,8 @@ export interface Food {
   radius: number
   color: string
   value: number      // score awarded when eaten (1 = normal, 5 = special)
+  vx?: number
+  vy?: number
 }
 
 export interface Virus {

@@ -1,5 +1,5 @@
 import {
-  BOT_COUNT, BOT_NAMES, CELL_COLORS, EJECT_MASS_FACTOR,
+  BOT_COUNT, BOT_NAMES, CELL_COLORS, EJECT_MASS_FACTOR, EJECT_SPEED,
   FOOD_COUNT, FOOD_RADIUS, INITIAL_PLAYER_RADIUS, MAX_RADIUS,
   MERGE_TIMER, MIN_RADIUS, SPECIAL_FOOD_COUNT, SPECIAL_FOOD_RADIUS,
   SPLIT_VELOCITY, VIRUS_COUNT, VIRUS_RADIUS, WORLD_HEIGHT, WORLD_WIDTH,
@@ -199,21 +199,41 @@ export function ejectMass(
     const d = Math.sqrt(dx * dx + dy * dy) || 1
     const nx = dx / d
     const ny = dy / d
-    const ejectDistance = (cell.radius + ejectRadius + 2) * 6
 
     newFood.push({
       id: uid(),
-      x: cell.x + nx * ejectDistance,
-      y: cell.y + ny * ejectDistance,
+      x: cell.x + nx * (cell.radius + ejectRadius + 2),
+      y: cell.y + ny * (cell.radius + ejectRadius + 2),
       radius: ejectRadius,
       color: cell.color,
       value: 1,
+      vx: nx * EJECT_SPEED,
+      vy: ny * EJECT_SPEED,
     })
 
     return { ...cell, radius: newRadius }
   })
 
   return { cells: updatedCells, food: [...food, ...newFood] }
+}
+
+function moveFood(food: Food[]): Food[] {
+  return food.map(item => {
+    const vx = (item.vx ?? 0) * 0.9
+    const vy = (item.vy ?? 0) * 0.9
+
+    if (Math.abs(vx) < 0.05 && Math.abs(vy) < 0.05) {
+      return { ...item, vx: 0, vy: 0 }
+    }
+
+    return {
+      ...item,
+      x: clamp(item.x + (item.vx ?? 0), item.radius, WORLD_WIDTH - item.radius),
+      y: clamp(item.y + (item.vy ?? 0), item.radius, WORLD_HEIGHT - item.radius),
+      vx,
+      vy,
+    }
+  })
 }
 
 // ─── Merge player cells ────────────────────────────────────────────────────
@@ -529,6 +549,7 @@ export function tick(input: TickInput): TickOutput {
   playerCells = mergePlayerCells(playerCells)
 
   // --- Player eats food ---
+  food = moveFood(food)
   const eatResult = eatFood([...playerCells], food)
   playerCells = eatResult.cells
   food = eatResult.food
